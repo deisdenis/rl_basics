@@ -21,7 +21,7 @@ def main(app_args):
         for block in range(n_blocks):
             k_bandit = bandit.Bandit(k=k)
             optimal_action = k_bandit.get_optimal_action()
-            model = rlmodels.EpsilonGreedy([i for i in range(k)], epsilon=eps, q_eval=app_args.weights)
+            model = rlmodels.EpsilonGreedy([i for i in range(k)], epsilon=eps, q_eval=app_args.weights, step_size=0.1)
             if app_args.optimistic_start:
                 model.set_q(np.repeat(5.0, k))
             for i in range(n_trials):

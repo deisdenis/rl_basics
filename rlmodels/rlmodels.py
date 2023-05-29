@@ -1,3 +1,4 @@
+import numpy
 import numpy as np
 
 
@@ -27,3 +28,6 @@ class EpsilonGreedy:
     def process_result(self, reward):
         a = self._last_action  # readability only
         self._q[a] += (reward - self._q[a]) / self._n[a]
+
+    def set_q(self, values: np.ndarray):
+        self._q = values

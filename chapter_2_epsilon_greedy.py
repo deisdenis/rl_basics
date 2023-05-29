@@ -11,9 +11,10 @@ def main(app_args):
     perf = []
     opt = []
     k = 10
-    n_blocks = 2000
+    n_blocks = 1000
     n_trials = 1000
     epsilons = [0, 0.01, 0.1]
+    step_size = 0.1
     for eps in epsilons:
         start_time = dt.datetime.now()
         eps_performance = np.zeros([n_trials])
@@ -21,10 +22,16 @@ def main(app_args):
         for block in range(n_blocks):
             k_bandit = bandit.Bandit(k=k)
             optimal_action = k_bandit.get_optimal_action()
-            model = rlmodels.EpsilonGreedy([i for i in range(k)], epsilon=eps, q_eval=app_args.weights, step_size=0.1)
+            model = rlmodels.EpsilonGreedy([i for i in range(k)], epsilon=eps, q_eval=app_args.weights,
+                                           step_size=step_size)
             if app_args.optimistic_start:
                 model.set_q(np.repeat(5.0, k))
             for i in range(n_trials):
+                # reset rewards every app_args.reset steps
+                if i > 0 and app_args.reset > 0 and i % app_args.reset == 0:
+                    k_bandit.reset_rewards()
+                    optimal_action = k_bandit.get_optimal_action()
+
                 a = model.get_action()
                 if a == optimal_action:
                     optimal_actions[i] += 1
@@ -51,4 +58,5 @@ if __name__ == "__main__":
     argParser.add_argument("-o", "--optimistic-start", help="optimistic initialization of q values",
                            required=False, action='store_true')
     argParser.add_argument("-w", "--weights", help="weights for q evaluation (simple, exp_weights)", default='simple')
+    argParser.add_argument("-r", "--reset", help="reset rewards every -r steps", default=-1, type=int)
     main(argParser.parse_args())

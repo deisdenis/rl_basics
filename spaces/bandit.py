@@ -7,7 +7,7 @@ class Bandit:
     _k = 0
     _means = []
 
-    def __init__(self, loc: float = 0.0, scale: float = 1.0, k: object = 10) -> object:
+    def __init__(self, loc: float = 0.0, scale: float = 1.0, k: int = 10) -> object:
         self._loc = loc
         self._scale = scale
         self._k = k
@@ -18,3 +18,6 @@ class Bandit:
 
     def get_optimal_action(self):
         return np.argmax(self._means)
+
+    def reset_rewards(self):
+        self._means = np.random.normal(self._loc, self._scale, self._k)

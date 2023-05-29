@@ -21,7 +21,7 @@ def main(app_args):
         for block in range(n_blocks):
             k_bandit = bandit.Bandit(k=k)
             optimal_action = k_bandit.get_optimal_action()
-            model = rlmodels.EpsilonGreedy([i for i in range(k)], epsilon=eps)
+            model = rlmodels.EpsilonGreedy([i for i in range(k)], epsilon=eps, q_eval=app_args.weights)
             if app_args.optimistic_start:
                 model.set_q(np.repeat(5.0, k))
             for i in range(n_trials):
@@ -50,5 +50,5 @@ if __name__ == "__main__":
     argParser = argparse.ArgumentParser()
     argParser.add_argument("-o", "--optimistic-start", help="optimistic initialization of q values",
                            required=False, action='store_true')
-    args = argParser.parse_args()
-    main(args)
+    argParser.add_argument("-w", "--weights", help="weights for q evaluation (simple, exp_weights)", default='simple')
+    main(argParser.parse_args())

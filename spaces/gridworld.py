@@ -4,8 +4,14 @@ class GridWorld:
         self._position = [0, 0]
         self._fancy_positions = [[0, 1], [0, 3]]
 
-    def get_position(self):
+    def get_state(self):
         return self._position
+
+    def get_state_tuple(self):
+        return self._position[0], self._position[1]
+
+    def set_state(self, new_pos):
+        self._position = [new_pos[0], new_pos[1]]
 
     def process_action(self, action: object) -> float:
         if not self.check_action(action):

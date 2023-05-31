@@ -161,3 +161,53 @@ class GridWorldAgent:
         reward = model.process_action(action)
         new_state = model.get_state_tuple()
         return reward, new_state
+
+
+class BlackJackAgent:
+    _model = None
+
+    def __init__(self, model):
+        self._model = model
+        self._v = {}.fromkeys(model.get_states(), 0)
+        self._returns = {}
+        for el in model.get_states():
+            self._returns[el] = []
+
+    def policy(self, state):
+        if state < 20:
+            return 1
+        return 0
+
+    def run_episode(self):
+        model = self._model
+        gamma = 1
+        s = []
+        a = []
+        r = [0]
+        cards = [model.hit(), model.hit()]
+        t = 0
+        playing = True
+        while playing:
+            s.append(min(model.get_score(cards), 22))
+            a.append(self.policy(s[t]))
+            if a[t] == 1:
+                cards.append(model.hit())
+                r.append(0)
+            else:
+                r.append(model.stick(cards))
+                playing = False
+            t += 1
+        G = 0
+        visited = []
+        for step in range(t-1, -1, -1):
+            G = gamma * G + r[step+1]
+            if s[step] not in visited:
+                returns = self._returns[s[step]]
+                returns.append(G)
+                self._v[s[step]] = sum(self._returns[s[step]]) / len(self._returns[s[step]])
+                visited.append(s[step])
+
+    def print_v(self):
+        print(self._v)
+
+

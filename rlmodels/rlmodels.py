@@ -199,8 +199,8 @@ class BlackJackAgent:
             t += 1
         G = 0
         visited = []
-        for step in range(t-1, -1, -1):
-            G = gamma * G + r[step+1]
+        for step in range(t - 1, -1, -1):
+            G = gamma * G + r[step + 1]
             if s[step] not in visited:
                 returns = self._returns[s[step]]
                 returns.append(G)
@@ -211,3 +211,54 @@ class BlackJackAgent:
         print(self._v)
 
 
+class WindyGridWorldAgent:
+    _states = []
+    _actions = []
+    _q = []
+
+    def __init__(self, model):
+        self._states = model.get_states()
+        self._actions = model.get_action_ids()
+        self._alpha = 0.5
+        self._epsilon = 0.1
+        self._gamma = 1
+        self._q = np.zeros([len(self._states), len(self._actions)])
+
+    def run_episode(self, terminal_states, model):
+        current_state = model.get_current_state()
+        current_state_id = self._states.index(current_state)
+        action = self._find_next_action(current_state_id)
+
+        safe_counter = 0
+        while current_state not in terminal_states and safe_counter < 100000:
+            safe_counter += 1
+            next_state, reward = model.use_action_id(action)
+            next_state_id = self._states.index(next_state)
+            next_action = self._find_next_action(next_state_id)
+            self._q[current_state_id, action] += self._alpha * (
+                    reward + self._gamma * self._q[next_state_id, next_action] - self._q[current_state_id, action])
+            current_state = next_state
+            current_state_id = next_state_id
+            action = next_action
+
+    def _find_next_action(self, state_id):
+        # epsilon-greedy action selection
+        if np.random.random() < self._epsilon:
+            action = np.random.choice(self._actions)
+        else:
+            action = np.argmax(self._q[state_id, :])
+        return action
+
+    def _find_best_action(self, state_id):
+        return np.argmax(self._q[state_id, :])
+
+    def get_policy(self, start, terminal_states, model):
+        policy = []
+        state = start
+        model.set_current_state(state)
+        while state not in terminal_states:
+            state_id = self._states.index(state)
+            action = np.argmax(self._q[state_id, :])
+            policy.append(action)
+            state, _ = model.use_action_id(action)
+        return policy

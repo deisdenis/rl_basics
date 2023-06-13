@@ -5,12 +5,16 @@ class WindyGridWorld:
         self._states = [(i, j) for i in range(7) for j in range(10)]
         self._actions = ['up', 'down', 'left', 'right']
         self._current_state = (3, 0)
+        self._terminal_states = [(3, 7)]
 
     def get_states(self):
         return self._states.copy()
 
     def get_current_state(self):
         return self._current_state
+
+    def get_terminal_states(self):
+        return self._terminal_states
 
     def set_current_state(self, state):
         self._current_state = state

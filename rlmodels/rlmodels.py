@@ -1,10 +1,13 @@
 from abc import ABC, abstractmethod
+from spaces.space import Space
 
 import numpy as np
 
 
+
+
 class Agent(ABC):
-    def __init__(self, agent_name, space):
+    def __init__(self, agent_name, space: Space):
         # initial config
         self.agent_name = agent_name
         self._space = space
@@ -43,7 +46,7 @@ class Agent(ABC):
 
 class WindyGridWorldAgent(Agent):
 
-    def __init__(self, space):
+    def __init__(self, space: Space):
         super().__init__('SARSA on-policy TD control', space)
         self.set_alpha(0.5)
         self.set_epsilon(0.1)
@@ -55,29 +58,28 @@ class WindyGridWorldAgent(Agent):
         action = self.make_epsilon_greedy_action(current_state_id)
 
         safe_counter = 0
-        while current_state not in self._terminal_states and safe_counter < 100000:
+        is_terminal = False
+        while not is_terminal and safe_counter < 100000:
             safe_counter += 1
-            next_state, reward = self._space.use_action_id(action)
-            next_state_id = self._states.index(next_state)
+            next_state_id, reward, is_terminal = self._space.execute_action_id(action)
             next_action = self.make_epsilon_greedy_action(next_state_id)
             try:
                 self._q[current_state_id, action] += self._alpha * (
                         reward + self._gamma * self._q[next_state_id, next_action] - self._q[current_state_id, action])
             except:
                 print(f'next_state_id = {next_state_id}, next_action = {next_action}')
-            current_state = next_state
             current_state_id = next_state_id
             action = next_action
 
     def get_policy(self, start):
         policy = []
-        state = start
-        self._space.set_current_state(state)
-        while state not in self._terminal_states:
-            state_id = self._states.index(state)
-            action = np.argmax(self._q[state_id, :])
-            policy.append(self._actions[action])
-            state, _ = self._space.use_action_id(action)
+        state_id = self._space.get_state_id_from_state(start)
+        self._space.set_current_state(start)
+        is_terminal = False
+        while not is_terminal:
+            action_id = np.argmax(self._q[state_id, :])
+            policy.append(self._actions[action_id])
+            state_id, _, is_terminal = self._space.execute_action_id(action_id)
         return policy
 
 

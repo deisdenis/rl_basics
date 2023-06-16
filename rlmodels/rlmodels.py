@@ -4,8 +4,6 @@ from spaces.space import Space
 import numpy as np
 
 
-
-
 class Agent(ABC):
     def __init__(self, agent_name, space: Space):
         # initial config
@@ -23,9 +21,18 @@ class Agent(ABC):
         self._epsilon = 0.1
         self._gamma = 1
 
+        # episode storage configuration
+        self._episodes = []
+        self._episode_id = -1
+
     @abstractmethod
     def run_episode(self):
         pass
+
+    def execute_action_id(self, action_id):
+        next_state_id, reward, is_terminal = self._space.execute_action_id(action_id)
+        self._episodes[self._episode_id].append((next_state_id, reward, is_terminal))
+        return next_state_id, reward, is_terminal
 
     def make_epsilon_greedy_action(self, state_id, ignore_epsilon=False):
         # epsilon-greedy action selection
@@ -53,6 +60,8 @@ class WindyGridWorldAgent(Agent):
         self.set_gamma(1)
 
     def run_episode(self):
+        self._episode_id += 1
+        self._episodes.append([])
         current_state = self._space.get_current_state()
         current_state_id = self._states.index(current_state)
         action = self.make_epsilon_greedy_action(current_state_id)
@@ -61,13 +70,10 @@ class WindyGridWorldAgent(Agent):
         is_terminal = False
         while not is_terminal and safe_counter < 100000:
             safe_counter += 1
-            next_state_id, reward, is_terminal = self._space.execute_action_id(action)
+            next_state_id, reward, is_terminal = self.execute_action_id(action)
             next_action = self.make_epsilon_greedy_action(next_state_id)
-            try:
-                self._q[current_state_id, action] += self._alpha * (
+            self._q[current_state_id, action] += self._alpha * (
                         reward + self._gamma * self._q[next_state_id, next_action] - self._q[current_state_id, action])
-            except:
-                print(f'next_state_id = {next_state_id}, next_action = {next_action}')
             current_state_id = next_state_id
             action = next_action
 

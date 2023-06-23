@@ -12,6 +12,7 @@ class Agent(ABC):
         self._actions = space.get_actions()
         self._states = space.get_states()
         self._terminal_states = space.get_terminal_states()
+        self._current_state_id = self._space.get_current_state()
 
         # initialize Q
         self._q = np.zeros([len(self._states), len(self._actions)])
@@ -22,17 +23,32 @@ class Agent(ABC):
         self._gamma = 1
 
         # episode storage configuration
-        self._episodes = []
         self._episode_id = -1
+        self._episode_step = -1
+        self._episodes = []
+        self._state_history = []
+        self._action_history = []
+        self._reward_history = []
 
     @abstractmethod
     def run_episode(self):
         pass
 
+    def next_episode(self):
+        self._episode_id += 1
+        self._episode_step = -1
+        self._episodes = []
+        self._state_history = [self._current_state_id]
+        self._action_history = []
+        self._reward_history = [0]  # using the notation where A_0 (action 0) from S_0 (state 0) produces S_1, R_1
+
     def execute_action_id(self, action_id):
-        next_state_id, reward, is_terminal = self._space.execute_action_id(action_id)
-        self._episodes[self._episode_id].append((next_state_id, reward, is_terminal))
-        return next_state_id, reward, is_terminal
+        self._episode_step += 1
+        self._current_state_id, reward, is_terminal = self._space.execute_action_id(action_id)
+        self._state_history.append(self._current_state_id)
+        self._episodes.append((self._current_state_id, reward, is_terminal))
+        self._reward_history.append(reward)
+        return self._current_state_id, reward, is_terminal
 
     def make_epsilon_greedy_action(self, state_id, ignore_epsilon=False):
         # epsilon-greedy action selection
@@ -60,29 +76,62 @@ class WindyGridWorldAgent(Agent):
         self.set_gamma(1)
 
     def run_episode(self):
-        self._episode_id += 1
-        self._episodes.append([])
+        self.next_episode()
         current_state = self._space.get_current_state()
-        current_state_id = self._states.index(current_state)
-        action = self.make_epsilon_greedy_action(current_state_id)
-
+        self._current_state_id = self._states.index(current_state)
+        action_id = self.make_epsilon_greedy_action(self._current_state_id)
         safe_counter = 0
         is_terminal = False
         while not is_terminal and safe_counter < 100000:
             safe_counter += 1
-            next_state_id, reward, is_terminal = self.execute_action_id(action)
+            next_state_id, reward, is_terminal = self.execute_action_id(action_id)
             next_action = self.make_epsilon_greedy_action(next_state_id)
-            self._q[current_state_id, action] += self._alpha * (
-                        reward + self._gamma * self._q[next_state_id, next_action] - self._q[current_state_id, action])
-            current_state_id = next_state_id
+            self._q[self._current_state_id, action_id] += self._alpha * (
+                    reward + self._gamma * self._q[next_state_id, next_action] - self._q[
+                self._current_state_id, action_id])
+            self._current_state_id = next_state_id
             action = next_action
+
+    def run_episode_n_sarsa(self):
+        n = 5
+        self.next_episode()
+        current_state = self._space.get_current_state()
+        self._current_state_id = self._states.index(current_state)
+        next_action = self.make_epsilon_greedy_action(self._current_state_id)
+        self._action_history.append(next_action)
+        big_t = np.inf
+        t = 0
+        safe_counter = 0
+        while safe_counter < 100000:
+            safe_counter += 1
+            if t < big_t:
+                next_state_id, reward, is_terminal = self.execute_action_id(next_action)
+                if is_terminal:
+                    big_t = t + 1
+                else:
+                    next_action = self.make_epsilon_greedy_action(next_state_id)
+                    self._action_history.append(next_action)
+            rho = t - n + 1
+            if rho >= 0:
+                big_g = sum([self._gamma ** (i - rho - 1) * self._reward_history[i] for i in range(
+                    rho + 1, min(rho + n, big_t) + 1)])
+                if rho + n < big_t:
+                    big_g += self._gamma * self._q[self._state_history[rho + n], self._action_history[rho+n]]
+                self._q[self._state_history[rho], self._action_history[rho]] += self._alpha * (
+                        big_g - self._q[self._state_history[rho], self._action_history[rho]]
+                    )
+            if rho == big_t - 1:
+                break
+            t += 1
 
     def get_policy(self, start):
         policy = []
         state_id = self._space.get_state_id_from_state(start)
         self._space.set_current_state(start)
         is_terminal = False
-        while not is_terminal:
+        safe_counter = 0
+        while not is_terminal and safe_counter < 100:
+            safe_counter += 1
             action_id = np.argmax(self._q[state_id, :])
             policy.append(self._actions[action_id])
             state_id, _, is_terminal = self._space.execute_action_id(action_id)
